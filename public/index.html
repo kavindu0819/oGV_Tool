@@ -20,9 +20,14 @@
     </nav>
 
     <main class="main">
-      <p class="eyebrow">oGV Project Finder</p>
-      <h1 class="headline">Find the <mark>right project</mark> for your EP</h1>
-      <p class="lede">Pick a product, a country and the month your EP wants to start. Every project here was added by the oGV IR team.</p>
+      <div class="hero">
+        <div>
+          <p class="eyebrow">oGV Project Finder</p>
+          <h1 class="headline">Find the <mark>right project</mark> for your EP</h1>
+          <p class="lede">Pick a product, a country and the month your EP wants to start. Every project here was added by the oGV IR team.</p>
+        </div>
+        <canvas class="globe" id="globe" role="img" aria-label="Globe"></canvas>
+      </div>
 
       <section class="search" aria-label="Search">
         <div class="segmented" role="radiogroup" aria-label="Product" id="products"></div>
@@ -63,6 +68,7 @@
   </div>
 
   <script src="/js/common.js"></script>
+  <script src="/js/globe.js"></script>
   <script src="/js/search.js"></script>
 </body>
 </html>

@@ -160,6 +160,25 @@ a { color: inherit; }
   text-wrap: pretty;
 }
 
+/* Hero: text + globe */
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) clamp(200px, calc(30vw - 220px), 420px);
+  align-items: center;
+  gap: var(--s8);
+}
+.globe { width: 100%; aspect-ratio: 1; }
+
+@media (max-width: 1600px) {
+  .hero .headline { font-size: 3.4rem; }
+}
+
+@media (max-width: 1360px) {
+  .hero .headline { font-size: var(--fs-display); }
+  .hero { grid-template-columns: minmax(0, 1fr); }
+  .globe { display: none; }
+}
+
 /* ---------- Buttons ---------- */
 
 .btn {
