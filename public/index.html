@@ -50,8 +50,13 @@
 
     <aside class="panel" id="panel" aria-label="Project details">
       <div class="panel-empty">
-        <h2>No project selected</h2>
-        <p>Tap a project to see its start dates, what's covered and a ready message for your EP.</p>
+        <p class="live-label"><span class="live-dot" aria-hidden="true"></span> Live right now</p>
+        <dl class="live-stats" id="live-stats">
+          <div><dt>Projects live</dt><dd class="num" data-count="projects">0</dd></div>
+          <div><dt>Countries</dt><dd class="num" data-count="countries">0</dd></div>
+          <div><dt>Next start</dt><dd class="num" data-count="next">&nbsp;</dd></div>
+        </dl>
+        <p class="panel-hint">Tap a project to see its start dates, what's covered and a ready message for your EP.</p>
       </div>
     </aside>
     <div class="backdrop" id="backdrop"></div>

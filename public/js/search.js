@@ -1,6 +1,6 @@
 // CR search page.
 (function () {
-  const { api, esc, icon, hydrateIcons, PRODUCTS, fmtDate, fmtMonth, weeks, renderDetail, bindDetail, toast } = window.OGV;
+  const { api, esc, icon, hydrateIcons, PRODUCTS, fmtDate, fmtDay, fmtMonth, weeks, renderDetail, bindDetail, toast } = window.OGV;
 
   const el = {
     products: document.getElementById('products'),
@@ -12,6 +12,50 @@
     backdrop: document.getElementById('backdrop'),
   };
   const panelEmpty = el.panel.innerHTML;
+  const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let summary = null;
+
+  /* ---------- Live numbers in the empty panel ---------- */
+
+  function countUp(node, target, ms = 1100) {
+    if (reducedMotion || target === 0) { node.textContent = target; return; }
+    const start = performance.now();
+    const tick = (now) => {
+      const t = Math.min((now - start) / ms, 1);
+      node.textContent = Math.round(target * (1 - Math.pow(1 - t, 3)));
+      if (t < 1) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }
+
+  function fillStats(animate) {
+    const box = el.panel.querySelector('#live-stats');
+    if (!box || !summary) return;
+    const projects = box.querySelector('[data-count="projects"]');
+    const countries = box.querySelector('[data-count="countries"]');
+    const next = box.querySelector('[data-count="next"]');
+    if (animate) {
+      countUp(projects, summary.projects);
+      countUp(countries, summary.countries.length);
+    } else {
+      projects.textContent = summary.projects;
+      countries.textContent = summary.countries.length;
+    }
+    next.innerHTML = summary.next_start
+      ? `${esc(fmtDay(summary.next_start))}<small>${esc(summary.next_start.slice(0, 4))}</small>`
+      : 'None yet';
+    if (animate && !reducedMotion) next.classList.add('pop');
+  }
+
+  async function loadSummary() {
+    try {
+      summary = await api('/api/summary');
+      fillStats(true);
+      window.dispatchEvent(new CustomEvent('ogv:summary', { detail: summary }));
+    } catch {
+      // Numbers are a nice extra; search still works without them.
+    }
+  }
 
   const state = {
     product: 'on_the_map',
@@ -181,7 +225,11 @@
     el.backdrop.classList.remove('show');
     if (!silent) el.results.querySelectorAll('.card').forEach((c) => c.setAttribute('aria-pressed', 'false'));
     // Wait for the sheet to slide away before clearing it.
-    setTimeout(() => { if (state.selectedId === null) el.panel.innerHTML = panelEmpty; }, silent ? 0 : 320);
+    setTimeout(() => {
+      if (state.selectedId !== null) return;
+      el.panel.innerHTML = panelEmpty;
+      fillStats(false);
+    }, silent ? 0 : 320);
   }
 
   /* ---------- Events ---------- */
@@ -267,4 +315,5 @@
 
   hydrateIcons();
   refresh();
+  loadSummary();
 })();
