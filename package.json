@@ -1,0 +1,22 @@
+{
+  "name": "ogv-project-finder",
+  "version": "1.0.0",
+  "description": "oGV Project Finder: IR adds Global Volunteer projects, CR finds them in seconds.",
+  "main": "server.js",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "seed": "node scripts/seed.js",
+    "db:up": "docker compose up -d"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "mysql2": "^3.11.5"
+  }
+}
