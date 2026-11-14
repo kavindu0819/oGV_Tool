@@ -37,6 +37,10 @@
             <label for="month">Start month</label>
             <select class="select" id="month"></select>
           </div>
+          <div class="field field-of-study" id="field-wrap" hidden>
+            <label for="study-field">Field</label>
+            <select class="select" id="study-field"></select>
+          </div>
         </div>
       </section>
 
@@ -50,6 +54,8 @@
     </main>
 
     <aside class="panel" id="panel" aria-label="Project details">
+      <button type="button" class="panel-close" id="panel-close" aria-label="Close" hidden><i data-icon="close"></i></button>
+      <div class="panel-body" id="panel-body">
       <div class="panel-empty">
         <p class="live-label"><span class="live-dot" aria-hidden="true"></span> Live right now</p>
         <dl class="live-stats" id="live-stats">
@@ -57,10 +63,28 @@
           <div><dt>Countries</dt><dd class="num" data-count="countries">0</dd></div>
           <div><dt>Next start</dt><dd class="num" data-count="next">&nbsp;</dd></div>
         </dl>
-        <p class="panel-hint">Tap a project to see its start dates, what's covered and a ready message for your EP.</p>
+        <p class="panel-hint">Tap a project to see its details, or press + to add it to your EP's list.</p>
+      </div>
+      </div>
+
+      <!-- Added projects + Send to EP -->
+      <div class="panel-foot" id="panel-foot" hidden>
+        <section class="ep-list" id="ep-list" aria-labelledby="ep-list-title" hidden>
+          <h3 class="ep-list-title" id="ep-list-title">For your EP <span class="num" id="ep-count"></span></h3>
+          <ul id="ep-items"></ul>
+        </section>
+        <button type="button" class="cta" id="send-btn">
+          <span class="cta-icon" id="send-icon"></span>
+          <span class="cta-label" aria-live="polite">Send to EP</span>
+          <span class="cta-meta num"></span>
+        </button>
       </div>
     </aside>
     <div class="backdrop" id="backdrop"></div>
+    <button type="button" class="list-bar" id="list-bar" hidden>
+      <span id="list-bar-text"></span>
+      <span class="list-bar-view">View</span>
+    </button>
   </div>
 
   <script src="/js/common.js"></script>

@@ -36,6 +36,16 @@ CREATE TABLE IF NOT EXISTS project_slots (
   INDEX idx_slots_start (start_date)
 );
 
+-- Fields a project suits (mainly Skill Up), e.g. "Computer sciences", "Architecture".
+-- One row per field, so a project can have several and CR can filter by one.
+CREATE TABLE IF NOT EXISTS project_fields (
+  project_id  INT UNSIGNED NOT NULL,
+  field       VARCHAR(80) NOT NULL,
+  PRIMARY KEY (project_id, field),
+  CONSTRAINT fk_fields_project FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE,
+  INDEX idx_fields_field (field)
+);
+
 -- Logged by CR when a search finds nothing, so IR knows what to look for.
 CREATE TABLE IF NOT EXISTS project_requests (
   id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

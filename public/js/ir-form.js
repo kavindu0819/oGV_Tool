@@ -53,6 +53,9 @@
             </div>
             <span class="error" data-error="product"></span>
           </div>
+          <div id="fields-row"${p.product === 'skill_up' ? '' : ' hidden'}>
+            ${field('fields', 'Fields', `<input class="input" id="f-fields" name="fields" maxlength="600" placeholder="Computer sciences, Architecture, Marketing" value="${esc((p.fields || []).join(', '))}">`, '(Skill Up, separate with commas)')}
+          </div>
           ${field('name', 'Project name', `<input class="input" id="f-name" name="name" maxlength="160" value="${esc(p.name)}" required>`)}
           ${field('sdg', 'SDG', `
             <select class="select" id="f-sdg" name="sdg">
@@ -115,6 +118,7 @@
       const btn = e.target.closest('[data-value]');
       if (!btn) return;
       document.querySelectorAll('#f-product [data-value]').forEach((b) => b.setAttribute('aria-checked', String(b === btn)));
+      document.getElementById('fields-row').hidden = btn.dataset.value !== 'skill_up';
     });
 
     document.getElementById('add-slot').addEventListener('click', () => {
@@ -140,8 +144,10 @@
 
   function readForm(form) {
     const val = (name) => form.elements[name].value;
+    const product = document.querySelector('#f-product [aria-checked="true"]')?.dataset.value || '';
     return {
-      product: document.querySelector('#f-product [aria-checked="true"]')?.dataset.value || '',
+      product,
+      fields: product === 'skill_up' ? val('fields') : '',
       name: val('name'),
       sdg: val('sdg'),
       country: val('country'),

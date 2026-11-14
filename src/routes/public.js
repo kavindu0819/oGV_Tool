@@ -45,6 +45,20 @@ router.get('/options', async (req, res, next) => {
       monthParams
     );
 
+    // Fields (e.g. "Computer sciences") are offered for Skill Up only.
+    let fieldRows = [];
+    if (product === 'skill_up') {
+      [fieldRows] = await pool.query(
+        `SELECT f.field AS name, COUNT(DISTINCT p.id) AS count
+           FROM projects p
+           JOIN project_slots s ON s.project_id = p.id
+           JOIN project_fields f ON f.project_id = p.id
+          WHERE ${visible} AND p.product = ? ${countryClause}
+          GROUP BY f.field ORDER BY f.field`,
+        monthParams
+      );
+    }
+
     const products = Object.fromEntries(PRODUCTS.map((p) => [p, 0]));
     productRows.forEach((r) => { products[r.product] = Number(r.count); });
 
@@ -52,6 +66,7 @@ router.get('/options', async (req, res, next) => {
       products,
       countries: countryRows.map((r) => ({ name: r.name, count: Number(r.count) })),
       months: monthRows.map((r) => ({ value: r.value, count: Number(r.count) })),
+      fields: fieldRows.map((r) => ({ name: r.name, count: Number(r.count) })),
     });
   } catch (err) {
     next(err);
@@ -81,10 +96,10 @@ router.get('/summary', async (_req, res, next) => {
   }
 });
 
-// Search. GET /api/projects?product=on_the_map&country=India&month=2027-07&sdg=4
+// Search. GET /api/projects?product=skill_up&country=India&month=2027-07&field=Computer%20sciences
 router.get('/projects', async (req, res, next) => {
   try {
-    const { product, country, month, sdg } = req.query;
+    const { product, country, month, sdg, field } = req.query;
     if (!PRODUCTS.includes(product)) return res.status(400).json({ error: 'Pick a product.' });
 
     const where = [visible, 'p.product = ?'];
@@ -97,6 +112,10 @@ router.get('/projects', async (req, res, next) => {
       params.push(from, to);
     }
     if (sdg) { where.push('p.sdg = ?'); params.push(Number(sdg)); }
+    if (field) {
+      where.push('EXISTS (SELECT 1 FROM project_fields f WHERE f.project_id = p.id AND f.field = ?)');
+      params.push(String(field));
+    }
 
     // One row per matching start date.
     const [rows] = await pool.query(
@@ -114,7 +133,7 @@ router.get('/projects', async (req, res, next) => {
     for (const row of rows) {
       if (!byId.has(row.id)) {
         const { start_date, ...project } = row;
-        byId.set(row.id, { ...project, is_demo: Boolean(row.is_demo), matched_dates: [], all_dates: [] });
+        byId.set(row.id, { ...project, is_demo: Boolean(row.is_demo), matched_dates: [], all_dates: [], fields: [] });
       }
       byId.get(row.id).matched_dates.push(row.start_date);
     }
@@ -128,6 +147,11 @@ router.get('/projects', async (req, res, next) => {
         [ids]
       );
       slotRows.forEach((s) => byId.get(s.project_id).all_dates.push(s.start_date));
+      const [fieldRows] = await pool.query(
+        'SELECT project_id, field FROM project_fields WHERE project_id IN (?) ORDER BY field',
+        [ids]
+      );
+      fieldRows.forEach((f) => byId.get(f.project_id).fields.push(f.field));
     }
 
     res.json({ projects: [...byId.values()] });

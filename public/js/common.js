@@ -117,20 +117,26 @@
   }
 
   /* ---------- Project text for EPs ---------- */
-  function epMessage(p, date) {
+  function projectBlock(p, date, prefix = '') {
     const lines = [
-      `Hi! Here's a project I think you'll like:`,
-      ``,
-      `${p.name}`,
+      `${prefix}${p.name}`,
       `${PRODUCTS[p.product]} in ${p.city ? `${p.city}, ` : ''}${p.country}`,
       `Host: ${p.host_lc}`,
       `Starts: ${fmtDate(date)} (${weeks(p.duration_weeks)})`,
     ];
-    if (p.sdg) lines.push(`Cause: ${sdgName(p.sdg)}`);
     if (p.covered) lines.push(`Covered: ${p.covered}`);
     lines.push(``, `Project: ${p.project_link}`);
     if (p.booklet_link) lines.push(`Booklet: ${p.booklet_link}`);
     return lines.join('\n');
+  }
+
+  // One project, or several numbered ones. items: [{ project, date }]
+  function epMessage(items) {
+    if (items.length === 1) {
+      return `Hi! Here's a project I think you'll like:\n\n${projectBlock(items[0].project, items[0].date)}`;
+    }
+    const blocks = items.map((it, i) => projectBlock(it.project, it.date, `${i + 1}. `));
+    return `Hi! Here are ${items.length} projects I think you'll like:\n\n${blocks.join('\n\n')}`;
   }
 
   async function copyText(text) {
@@ -150,14 +156,14 @@
     }
   }
 
-  /* ---------- Detail panel (CR results and IR form preview) ---------- */
+  /* ---------- Detail panel ---------- */
   // p: project with all_dates (or slots); matched: dates that matched the search.
-  function renderDetail(p, { matched = [], preview = false } = {}) {
+  function renderDetail(p, { matched = [] } = {}) {
     const dates = (p.all_dates || p.slots || []).filter(Boolean);
-    const first = matched[0] || dates[0];
     const where = [p.host_lc, p.city, p.country].filter(Boolean).join(', ');
     const facts = [
       ['Duration', p.duration_weeks ? weeks(p.duration_weeks) : ''],
+      ['Fields', (p.fields || []).join(', ')],
       ['Cause', sdgName(p.sdg)],
       ["What's covered", p.covered],
       ['Language', p.language],
@@ -186,42 +192,12 @@
           ${p.project_link ? `<a href="${esc(p.project_link)}" target="_blank" rel="noopener">Project page ${icon('external', 'icon icon-sm')}</a>` : ''}
           ${p.booklet_link ? `<a href="${esc(p.booklet_link)}" target="_blank" rel="noopener">Booklet ${icon('file', 'icon icon-sm')}</a>` : ''}
         </div>
-
-        ${preview || !first ? '' : `
-        <div class="cta-wrap">
-          <a class="cta" data-action="whatsapp" href="https://wa.me/?text=${encodeURIComponent(epMessage(p, first))}" target="_blank" rel="noopener">
-            <span class="cta-icon">${icon('send')}</span>
-            <span class="cta-label">Send to EP</span>
-            <span class="cta-meta num">${esc(fmtDay(first))}</span>
-          </a>
-          <button type="button" class="copy-btn" data-action="copy">${icon('copy')}<span>Copy details</span></button>
-        </div>`}
       </article>`;
-  }
-
-  // Wires the copy button inside a rendered detail.
-  function bindDetail(container, p, matched = []) {
-    const btn = container.querySelector('[data-action="copy"]');
-    if (!btn) return;
-    btn.addEventListener('click', async () => {
-      const dates = p.all_dates || p.slots || [];
-      const ok = await copyText(epMessage(p, matched[0] || dates[0]));
-      if (ok) {
-        btn.classList.add('done');
-        btn.innerHTML = `${icon('check')}<span>Copied</span>`;
-        setTimeout(() => {
-          btn.classList.remove('done');
-          btn.innerHTML = `${icon('copy')}<span>Copy details</span>`;
-        }, 1800);
-      } else {
-        toast('Could not copy. Select the text and copy it yourself.', { error: true });
-      }
-    });
   }
 
   window.OGV = {
     icon, hydrateIcons, PRODUCTS, SDGS, sdgName, api, esc, toast,
     fmtDate, fmtDay, fmtMonth, todayIso, daysSince, weeks, epMessage, copyText,
-    renderDetail, bindDetail,
+    renderDetail,
   };
 })();

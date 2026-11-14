@@ -1,17 +1,32 @@
 // CR search page.
 (function () {
-  const { api, esc, icon, hydrateIcons, PRODUCTS, fmtDate, fmtDay, fmtMonth, weeks, renderDetail, bindDetail, toast } = window.OGV;
+  const { api, esc, icon, hydrateIcons, PRODUCTS, fmtDate, fmtDay, fmtMonth, weeks, renderDetail, epMessage, copyText, toast } = window.OGV;
 
+  const $ = (id) => document.getElementById(id);
   const el = {
-    products: document.getElementById('products'),
-    country: document.getElementById('country'),
-    month: document.getElementById('month'),
-    summary: document.getElementById('summary'),
-    results: document.getElementById('results'),
-    panel: document.getElementById('panel'),
-    backdrop: document.getElementById('backdrop'),
+    products: $('products'),
+    country: $('country'),
+    month: $('month'),
+    field: $('study-field'),
+    fieldWrap: $('field-wrap'),
+    filters: document.querySelector('.filters'),
+    summary: $('summary'),
+    results: $('results'),
+    panel: $('panel'),
+    body: $('panel-body'),
+    close: $('panel-close'),
+    foot: $('panel-foot'),
+    epList: $('ep-list'),
+    epItems: $('ep-items'),
+    epCount: $('ep-count'),
+    send: $('send-btn'),
+    sendIcon: $('send-icon'),
+    backdrop: $('backdrop'),
+    listBar: $('list-bar'),
+    listBarText: $('list-bar-text'),
   };
-  const panelEmpty = el.panel.innerHTML;
+  const panelEmpty = el.body.innerHTML;
+  const isPhone = () => window.matchMedia('(max-width: 1100px)').matches;
   const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let summary = null;
 
@@ -61,10 +76,14 @@
     product: 'on_the_map',
     country: '',
     month: '',
-    options: { products: {}, countries: [], months: [] },
+    field: '',              // Skill Up only, e.g. "Computer sciences"
+    options: { products: {}, countries: [], months: [], fields: [] },
     projects: [],
     selectedId: null,
+    current: null,          // project open in the panel
+    picked: [],             // [{ project, date }] added with +, cleared on refresh
   };
+  const isPicked = (id) => state.picked.some((it) => it.project.id === id);
   let searchSeq = 0;
 
   /* ---------- Filters ---------- */
@@ -90,6 +109,14 @@
     fillSelect(el.month, 'Any month', months.map((m) => ({ value: m.value, label: `${fmtMonth(m.value)} (${m.count})` })), state.month);
     el.country.disabled = countries.length === 0;
     el.month.disabled = months.length === 0;
+
+    // Field filter: Skill Up only.
+    const fields = state.options.fields || [];
+    const showField = state.product === 'skill_up' && fields.length > 0;
+    if (state.field && !fields.some((f) => f.name === state.field)) state.field = '';
+    el.fieldWrap.hidden = !showField;
+    el.filters.classList.toggle('has-field', showField);
+    fillSelect(el.field, 'Any field', fields.map((f) => ({ value: f.name, label: `${f.name} (${f.count})` })), state.field);
   }
 
   async function loadOptions() {
@@ -111,24 +138,36 @@
     const bits = [PRODUCTS[state.product]];
     if (state.country) bits.push(`in ${state.country}`);
     if (state.month) bits.push(`starting ${fmtMonth(state.month)}`);
+    if (state.field) bits.push(`for ${state.field}`);
     return bits.join(' ');
   }
 
   function cardHtml(p) {
     const first = p.matched_dates[0];
     const more = p.matched_dates.length - 1;
+    const top = [esc(p.country), p.sdg ? `SDG ${p.sdg}` : ''].filter(Boolean).join(' · ');
     return `
-      <button type="button" class="card" data-id="${p.id}" aria-pressed="${state.selectedId === p.id}">
-        <span class="card-top"><span>${esc(p.country)}</span>${p.is_demo ? '<span class="tag">Demo</span>' : p.sdg ? `<span>SDG ${p.sdg}</span>` : ''}</span>
-        <span>
-          <span class="card-title">${esc(p.name)}</span>
-          <span class="card-sub">${esc(p.host_lc)}</span>
-        </span>
-        <span class="card-foot">
-          <span class="card-date num"><small>Starts</small>${esc(fmtDate(first))}</span>
-          <span class="card-weeks num">${esc(weeks(p.duration_weeks))}${more > 0 ? ` · +${more} date${more > 1 ? 's' : ''}` : ''}</span>
-        </span>
-      </button>`;
+      <div class="card-wrap">
+        <button type="button" class="card" data-id="${p.id}" aria-pressed="${state.selectedId === p.id}">
+          <span class="card-top"><span>${top}${p.is_demo ? ' <span class="tag">Demo</span>' : ''}</span></span>
+          <span>
+            <span class="card-title">${esc(p.name)}</span>
+            <span class="card-sub">${esc(p.host_lc)}</span>
+          </span>
+          <span class="card-foot">
+            <span class="card-date num"><small>Starts</small>${esc(fmtDate(first))}</span>
+            <span class="card-weeks num">${esc(weeks(p.duration_weeks))}${more > 0 ? ` · +${more} date${more > 1 ? 's' : ''}` : ''}</span>
+          </span>
+        </button>
+        ${addButtonHtml(p)}
+      </div>`;
+  }
+
+  function addButtonHtml(p) {
+    const added = isPicked(p.id);
+    return `<button type="button" class="card-add" data-add="${p.id}" aria-pressed="${added}"
+      aria-label="${added ? 'Remove' : 'Add'} ${esc(p.name)} ${added ? 'from' : 'to'} your EP list" title="${added ? 'Remove from list' : 'Add to list'}">
+      ${icon(added ? 'check' : 'plus')}</button>`;
   }
 
   function renderResults() {
@@ -147,7 +186,7 @@
     el.results.innerHTML = `
       <div class="empty">
         <h3>No match yet</h3>
-        <p>No ${esc(PRODUCTS[state.product])} projects${where}${when}.</p>
+        <p>No ${esc(PRODUCTS[state.product])} projects${where}${when}${state.field ? ` for ${esc(state.field)}` : ''}.</p>
         ${otherMonths.length ? `
           <p>Projects${where} start in these months instead:</p>
           <div class="suggest">${otherMonths.slice(0, 6).map((m) => `
@@ -185,6 +224,7 @@
     const params = new URLSearchParams({ product: state.product });
     if (state.country) params.set('country', state.country);
     if (state.month) params.set('month', state.month);
+    if (state.product === 'skill_up' && state.field) params.set('field', state.field);
     try {
       const { projects } = await api(`/api/projects?${params}`);
       if (seq !== searchSeq) return; // a newer search started
@@ -207,29 +247,117 @@
     await runSearch();
   }
 
-  /* ---------- Detail panel ---------- */
+  /* ---------- Panel: details, EP list, Send to EP ---------- */
+
+  function showSheet() {
+    el.panel.classList.add('open');
+    el.backdrop.classList.add('show');
+    updateChrome();
+  }
 
   function openPanel(project) {
     state.selectedId = project.id;
-    el.panel.innerHTML = `<button type="button" class="panel-close" aria-label="Close details">${icon('close')}</button>${renderDetail(project, { matched: project.matched_dates })}`;
-    bindDetail(el.panel, project, project.matched_dates);
-    el.panel.classList.add('open');
-    el.backdrop.classList.add('show');
+    state.current = project;
+    el.body.innerHTML = renderDetail(project, { matched: project.matched_dates });
     el.results.querySelectorAll('.card').forEach((c) => c.setAttribute('aria-pressed', String(Number(c.dataset.id) === project.id)));
-    if (window.matchMedia('(max-width: 1100px)').matches) el.panel.querySelector('.panel-close').focus();
+    showSheet();
+    renderFoot();
+    if (isPhone()) el.close.focus();
   }
 
   function closePanel(silent = false) {
     state.selectedId = null;
+    state.current = null;
     el.panel.classList.remove('open');
     el.backdrop.classList.remove('show');
     if (!silent) el.results.querySelectorAll('.card').forEach((c) => c.setAttribute('aria-pressed', 'false'));
-    // Wait for the sheet to slide away before clearing it.
+    updateChrome();
+    // Wait for the phone sheet to slide away before swapping the content.
     setTimeout(() => {
       if (state.selectedId !== null) return;
-      el.panel.innerHTML = panelEmpty;
+      el.body.innerHTML = panelEmpty;
       fillStats(false);
+      renderFoot();
     }, silent ? 0 : 320);
+  }
+
+  // Close button, and the phone bar that opens the list.
+  function updateChrome() {
+    const open = el.panel.classList.contains('open');
+    el.close.hidden = isPhone() ? !open : state.current === null;
+    el.listBar.hidden = !(isPhone() && state.picked.length && !open);
+    el.listBarText.textContent = `${state.picked.length} added for your EP`;
+  }
+
+  function sendLabel() {
+    return state.picked.length > 1 ? `Send ${state.picked.length} to EP` : 'Send to EP';
+  }
+
+  function renderFoot() {
+    const n = state.picked.length;
+    el.epList.hidden = n === 0;
+    el.epCount.textContent = `(${n})`;
+    el.epItems.innerHTML = state.picked.map(({ project: p, date }) => `
+      <li class="ep-item">
+        <span class="ep-item-text">
+          <span class="ep-item-name">${esc(p.name)}</span>
+          <span class="ep-item-meta num">${esc(p.country)} · ${esc(fmtDay(date))}</span>
+        </span>
+        <button type="button" class="ep-remove" data-remove="${p.id}" aria-label="Remove ${esc(p.name)}">${icon('close', 'icon icon-sm')}</button>
+      </li>`).join('');
+
+    // Send copies the list if there is one, otherwise the open project.
+    el.foot.hidden = n === 0 && state.current === null;
+    if (!el.send.classList.contains('sent')) {
+      el.send.querySelector('.cta-label').textContent = sendLabel();
+    }
+    el.send.querySelector('.cta-meta').textContent =
+      n === 0 && state.current ? fmtDay(state.current.matched_dates[0]) : '';
+    updateChrome();
+  }
+
+  function togglePick(id) {
+    if (isPicked(id)) {
+      state.picked = state.picked.filter((it) => it.project.id !== id);
+    } else {
+      const project = state.projects.find((p) => p.id === id);
+      if (!project) return;
+      state.picked.push({ project, date: project.matched_dates[0] });
+    }
+    // Swap just this card's button so the pop animation plays.
+    const btn = el.results.querySelector(`[data-add="${id}"]`);
+    if (btn) {
+      const project = state.projects.find((p) => p.id === id);
+      btn.outerHTML = addButtonHtml(project);
+      el.results.querySelector(`[data-add="${id}"]`).classList.add('pop');
+    }
+    renderFoot();
+  }
+
+  let sentTimer;
+  async function send() {
+    const items = state.picked.length
+      ? state.picked
+      : state.current ? [{ project: state.current, date: state.current.matched_dates[0] }] : [];
+    if (!items.length) return;
+    const ok = await copyText(epMessage(items));
+    if (!ok) {
+      toast('Could not copy. Check your browser allows clipboard access.', { error: true });
+      return;
+    }
+    // Sent animation: fill sweeps in, circle slides right, plane flies off, check draws in.
+    const btn = el.send;
+    const pad = parseFloat(getComputedStyle(btn).paddingLeft);
+    btn.style.setProperty('--travel', `${btn.clientWidth - el.sendIcon.offsetWidth - pad * 2}px`);
+    btn.classList.remove('sent');
+    void btn.offsetWidth; // restart on repeat clicks
+    btn.classList.add('sent');
+    btn.querySelector('.cta-label').textContent = 'Copied to clipboard';
+    clearTimeout(sentTimer);
+    sentTimer = setTimeout(() => {
+      btn.classList.remove('sent');
+      btn.querySelector('.cta-label').textContent = sendLabel();
+    }, 2600);
   }
 
   /* ---------- Events ---------- */
@@ -240,7 +368,13 @@
     state.product = btn.dataset.product;
     state.country = '';
     state.month = '';
+    state.field = '';
     refresh();
+  });
+
+  el.field.addEventListener('change', () => {
+    state.field = el.field.value;
+    refresh({ reloadOptions: false });
   });
 
   el.country.addEventListener('change', () => {
@@ -254,6 +388,11 @@
   });
 
   el.results.addEventListener('click', (e) => {
+    const add = e.target.closest('[data-add]');
+    if (add) {
+      togglePick(Number(add.dataset.add));
+      return;
+    }
     const card = e.target.closest('.card');
     if (card) {
       const project = state.projects.find((p) => p.id === Number(card.dataset.id));
@@ -305,14 +444,20 @@
     }
   });
 
-  el.panel.addEventListener('click', (e) => {
-    if (e.target.closest('.panel-close')) closePanel();
+  el.close.addEventListener('click', () => closePanel());
+  el.epItems.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-remove]');
+    if (btn) togglePick(Number(btn.dataset.remove));
   });
+  el.send.addEventListener('click', send);
+  el.listBar.addEventListener('click', showSheet);
   el.backdrop.addEventListener('click', () => closePanel());
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && state.selectedId !== null) closePanel();
+    if (e.key === 'Escape' && el.panel.classList.contains('open')) closePanel();
   });
+  window.matchMedia('(max-width: 1100px)').addEventListener('change', updateChrome);
 
+  el.sendIcon.innerHTML = icon('send', 'icon cta-send') + icon('check', 'icon cta-check');
   hydrateIcons();
   refresh();
   loadSummary();

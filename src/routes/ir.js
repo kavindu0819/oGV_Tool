@@ -45,6 +45,8 @@ async function loadProject(id) {
     [id]
   );
   project.slots = slots.map((s) => s.start_date);
+  const [fields] = await pool.query('SELECT field FROM project_fields WHERE project_id = ? ORDER BY field', [id]);
+  project.fields = fields.map((f) => f.field);
   return project;
 }
 
@@ -63,6 +65,15 @@ async function saveSlots(conn, projectId, slots) {
   if (slots.length) {
     await conn.query('INSERT INTO project_slots (project_id, start_date) VALUES ?', [
       slots.map((d) => [projectId, d]),
+    ]);
+  }
+}
+
+async function saveFields(conn, projectId, fields) {
+  await conn.query('DELETE FROM project_fields WHERE project_id = ?', [projectId]);
+  if (fields.length) {
+    await conn.query('INSERT INTO project_fields (project_id, field) VALUES ?', [
+      fields.map((f) => [projectId, f]),
     ]);
   }
 }
@@ -121,6 +132,12 @@ router.get('/projects', async (req, res, next) => {
       if (!byProject.has(s.project_id)) byProject.set(s.project_id, []);
       byProject.get(s.project_id).push(s.start_date);
     });
+    const [fieldRows] = await pool.query('SELECT project_id, field FROM project_fields ORDER BY field');
+    const fieldsOf = new Map();
+    fieldRows.forEach((f) => {
+      if (!fieldsOf.has(f.project_id)) fieldsOf.set(f.project_id, []);
+      fieldsOf.get(f.project_id).push(f.field);
+    });
     const now = today();
     res.json({
       projects: projects.map((p) => {
@@ -128,6 +145,7 @@ router.get('/projects', async (req, res, next) => {
         return {
           ...toClient(p, req.session),
           slots: all,
+          fields: fieldsOf.get(p.id) || [],
           next_start: all.find((d) => d >= now) || null,
         };
       }),
@@ -164,6 +182,7 @@ router.post('/projects', async (req, res, next) => {
         today(), req.demoSid]
     );
     await saveSlots(conn, result.insertId, data.slots);
+    await saveFields(conn, result.insertId, data.fields);
     await conn.commit();
     const project = await loadProject(result.insertId);
     res.status(201).json({ project: toClient(project, req.session) });
@@ -195,6 +214,7 @@ router.put('/projects/:id', async (req, res, next) => {
         today(), existing.id]
     );
     await saveSlots(conn, existing.id, data.slots);
+    await saveFields(conn, existing.id, data.fields);
     await conn.commit();
     const project = await loadProject(existing.id);
     res.json({ project: toClient(project, req.session) });

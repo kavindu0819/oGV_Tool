@@ -63,6 +63,11 @@ function validateProject(body = {}) {
   else if (!slots.every(isDate)) errors.slots = 'One of the start dates is not a valid date.';
   data.slots = slots;
 
+  // Fields (Skill Up): array or comma-separated text, each up to 80 chars, max 15.
+  const rawFields = Array.isArray(body.fields) ? body.fields : String(body.fields || '').split(',');
+  data.fields = [...new Set(rawFields.map((f) => text(f, 80)).filter(Boolean))];
+  if (data.fields.length > 15) errors.fields = 'Up to 15 fields per project.';
+
   return { errors, data };
 }
 
