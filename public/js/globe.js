@@ -1,5 +1,5 @@
-// Dotted-continent Earth, centred on the border between the dark area and the grey panel.
-// Left half fades out before the headline; right half shows faintly behind the panel.
+// Dotted-continent Earth: 70% in the dark area, 30% tucked behind the grey panel.
+// It fades out towards the headline so the text stays readable.
 // Pins mark every country with live projects. Canvas + orthographic projection, no libraries.
 (function () {
   const canvas = document.getElementById('globe');
@@ -111,7 +111,6 @@
   const css = getComputedStyle(document.documentElement);
   const v = (name) => css.getPropertyValue(name).trim();
   const DARK = { dot: v('--text-3'), rim: v('--line'), pin: v('--accent'), label: v('--text-2') };
-  const LIGHT = { dot: v('--paper-text-2'), rim: v('--paper-3'), pin: v('--paper-text'), label: v('--paper-text') };
   const FONT = `600 11px ${v('--font')}`;
 
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -127,15 +126,15 @@
   let W = 0;
   let H = 0;
   let dpr = 1;
-  const PANEL_ALPHA = 0.6;               // how strongly the globe shows behind the grey panel
-  let panelAlpha = PANEL_ALPHA;
-  let panelTarget = PANEL_ALPHA;
   let running = false;
 
+  // 70% of the globe sits in the dark area; the other 30% is hidden behind the grey panel.
+  const SHOWN = 0.7;
   function geometry() {
     const border = panel.getBoundingClientRect().left;
-    const R = H * 0.47;
-    return { cx: border, cy: H / 2, R, border };
+    // As tall as the screen, but smaller on narrower screens so it stays clear of the text.
+    const R = Math.min(H * 0.47, border * 0.32);
+    return { cx: border - (SHOWN * 2 - 1) * R, cy: H / 2, R, border };
   }
 
   // lat/lon -> screen point and depth (z > 0 faces the viewer).
@@ -219,17 +218,6 @@
     ctx.fillStyle = fade;
     ctx.fillRect(0, 0, g.border, H);
     ctx.restore();
-
-    // Grey panel side, faint
-    if (panelAlpha > 0.01) {
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(g.border, 0, W - g.border, H);
-      ctx.clip();
-      // No labels here: they would collide with the panel's numbers.
-      drawGlobe(g, LIGHT, now, panelAlpha, false);
-      ctx.restore();
-    }
   }
 
   function frame(now) {
@@ -237,7 +225,6 @@
     const dt = now - last;
     last = now;
     if (!reduced) rotation += dt * SPIN;
-    panelAlpha += (panelTarget - panelAlpha) * Math.min(1, dt / 200);
     draw(now);
     requestAnimationFrame(frame);
   }
@@ -253,8 +240,23 @@
     draw(performance.now());
   }
 
+  // The map is only downloaded on screens that show the globe (not phones).
+  let mapRequested = false;
+  function loadMap() {
+    if (mapRequested) return;
+    mapRequested = true;
+    fetch('/data/land-110m.json')
+      .then((r) => r.json())
+      .then((topo) => {
+        dots = buildDots(decodeLand(topo));
+        draw(performance.now());
+      })
+      .catch(() => { mapRequested = false; /* globe still shows its rim and pins */ });
+  }
+
   function start() {
     if (running || !desktop.matches) return;
+    loadMap();
     running = true;
     last = performance.now();
     requestAnimationFrame(frame);
@@ -264,21 +266,12 @@
   window.addEventListener('resize', resize);
   desktop.addEventListener('change', () => (desktop.matches ? start() : stop()));
 
-  // From search.js: live countries, and whether a project is open in the panel.
+  // From search.js: the countries with live projects.
   window.addEventListener('ogv:summary', (e) => {
     pins = (e.detail.countries || []).map(lookup).filter(Boolean);
     canvas.setAttribute('aria-label', pins.length ? `Globe showing projects in ${pins.map((p) => p.name).join(', ')}` : 'Globe');
     draw(performance.now());
   });
-  window.addEventListener('ogv:panel', (e) => { panelTarget = e.detail.open ? 0 : PANEL_ALPHA; });
-
-  fetch('/data/land-110m.json')
-    .then((r) => r.json())
-    .then((topo) => {
-      dots = buildDots(decodeLand(topo));
-      draw(performance.now());
-    })
-    .catch(() => { /* globe still shows its rim and pins */ });
 
   resize();
   start();

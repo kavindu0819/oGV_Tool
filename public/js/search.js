@@ -215,7 +215,6 @@
     bindDetail(el.panel, project, project.matched_dates);
     el.panel.classList.add('open');
     el.backdrop.classList.add('show');
-    window.dispatchEvent(new CustomEvent('ogv:panel', { detail: { open: true } }));
     el.results.querySelectorAll('.card').forEach((c) => c.setAttribute('aria-pressed', String(Number(c.dataset.id) === project.id)));
     if (window.matchMedia('(max-width: 1100px)').matches) el.panel.querySelector('.panel-close').focus();
   }
@@ -224,7 +223,6 @@
     state.selectedId = null;
     el.panel.classList.remove('open');
     el.backdrop.classList.remove('show');
-    window.dispatchEvent(new CustomEvent('ogv:panel', { detail: { open: false } }));
     if (!silent) el.results.querySelectorAll('.card').forEach((c) => c.setAttribute('aria-pressed', 'false'));
     // Wait for the sheet to slide away before clearing it.
     setTimeout(() => {

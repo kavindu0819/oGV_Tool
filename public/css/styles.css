@@ -160,14 +160,17 @@ a { color: inherit; }
   text-wrap: pretty;
 }
 
-/* Globe: a full-screen layer behind the content, centred on the panel edge.
-   The grey panel colour moves to the page background so the globe shows through it. */
+/* Globe: a full-screen layer behind the content. The grey panel sits on top,
+   so the part of the globe past the panel edge is hidden behind it. */
 .globe { display: none; }
 @media (min-width: 1101px) {
-  body.cr-page { background: linear-gradient(to right, var(--bg) calc(100% - var(--panel)), var(--paper) 0); }
   body.cr-page .globe { display: block; position: fixed; top: 0; left: 0; z-index: 0; pointer-events: none; }
   body.cr-page .app { position: relative; z-index: 1; }
-  body.cr-page .panel { background: transparent; }
+
+  /* Text keeps its starting point but runs wider to the right */
+  body.cr-page .headline { max-width: 20ch; }
+  body.cr-page .lede { max-width: 66ch; }
+  body.cr-page .filters { grid-template-columns: repeat(2, minmax(0, 320px)); }
 }
 
 /* ---------- Buttons ---------- */
