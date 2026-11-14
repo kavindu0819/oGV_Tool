@@ -1,12 +1,11 @@
 // CR search page.
 (function () {
-  const { api, esc, icon, hydrateIcons, PRODUCTS, SDGS, fmtDate, fmtMonth, weeks, renderDetail, bindDetail, toast } = window.OGV;
+  const { api, esc, icon, hydrateIcons, PRODUCTS, fmtDate, fmtMonth, weeks, renderDetail, bindDetail, toast } = window.OGV;
 
   const el = {
     products: document.getElementById('products'),
     country: document.getElementById('country'),
     month: document.getElementById('month'),
-    sdg: document.getElementById('sdg'),
     summary: document.getElementById('summary'),
     results: document.getElementById('results'),
     panel: document.getElementById('panel'),
@@ -18,7 +17,6 @@
     product: 'on_the_map',
     country: '',
     month: '',
-    sdg: '',
     options: { products: {}, countries: [], months: [] },
     projects: [],
     selectedId: null,
@@ -58,8 +56,6 @@
     renderFilters();
   }
 
-  fillSelect(el.sdg, 'Any cause', SDGS.map((name, i) => ({ value: String(i + 1), label: `SDG ${i + 1} ${name}` })), '');
-
   /* ---------- Results ---------- */
 
   function showLoading() {
@@ -71,7 +67,6 @@
     const bits = [PRODUCTS[state.product]];
     if (state.country) bits.push(`in ${state.country}`);
     if (state.month) bits.push(`starting ${fmtMonth(state.month)}`);
-    if (state.sdg) bits.push(`for SDG ${state.sdg}`);
     return bits.join(' ');
   }
 
@@ -108,7 +103,7 @@
     el.results.innerHTML = `
       <div class="empty">
         <h3>No match yet</h3>
-        <p>No ${esc(PRODUCTS[state.product])} projects${where}${when}${state.sdg ? ` for SDG ${esc(state.sdg)}` : ''}.</p>
+        <p>No ${esc(PRODUCTS[state.product])} projects${where}${when}.</p>
         ${otherMonths.length ? `
           <p>Projects${where} start in these months instead:</p>
           <div class="suggest">${otherMonths.slice(0, 6).map((m) => `
@@ -146,7 +141,6 @@
     const params = new URLSearchParams({ product: state.product });
     if (state.country) params.set('country', state.country);
     if (state.month) params.set('month', state.month);
-    if (state.sdg) params.set('sdg', state.sdg);
     try {
       const { projects } = await api(`/api/projects?${params}`);
       if (seq !== searchSeq) return; // a newer search started
@@ -208,11 +202,6 @@
 
   el.month.addEventListener('change', () => {
     state.month = el.month.value;
-    refresh({ reloadOptions: false });
-  });
-
-  el.sdg.addEventListener('change', () => {
-    state.sdg = el.sdg.value;
     refresh({ reloadOptions: false });
   });
 

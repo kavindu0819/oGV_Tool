@@ -219,7 +219,7 @@ a { color: inherit; }
 
 .filters {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 220px));
+  grid-template-columns: repeat(2, minmax(0, 240px));
   gap: var(--s4);
 }
 
@@ -617,7 +617,6 @@ textarea.input { min-height: 96px; padding: var(--s3) var(--s4); resize: vertica
   .rail-spacer { display: none; }
   .main { padding: var(--s8) var(--s4) var(--s16); }
   .filters { grid-template-columns: 1fr 1fr; }
-  .filters .field:first-child { grid-column: 1 / -1; }
   .segmented { width: 100%; }
   .segmented button { flex: 1; justify-content: center; padding: 0 var(--s3); }
   .cards { grid-template-columns: 1fr; }
