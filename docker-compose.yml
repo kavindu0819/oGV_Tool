@@ -1,0 +1,19 @@
+# Local MySQL for development. Start with: npm run db:up
+# Values come from .env in this folder.
+services:
+  db:
+    image: mysql:8.0
+    container_name: ogv-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "${DB_PORT}:3306"
+    volumes:
+      - ogv-mysql-data:/var/lib/mysql
+
+volumes:
+  ogv-mysql-data:
