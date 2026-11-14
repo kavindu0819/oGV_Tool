@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>IR Project Bank</title>
+  <meta name="theme-color" content="#1b1c1f">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <!-- Sign in -->
+  <section class="login" id="view-login" hidden>
+    <div class="login-box">
+      <p class="eyebrow">oGV Project Finder</p>
+      <h1 class="headline">IR team <mark>sign in</mark></h1>
+      <form class="login-form" id="login-form" novalidate>
+        <div class="field">
+          <label for="password">IR password</label>
+          <input class="input" id="password" name="password" type="password" autocomplete="current-password" required>
+          <span class="error" id="login-error" role="alert"></span>
+        </div>
+        <button class="btn btn-primary btn-block" type="submit">Sign in</button>
+      </form>
+      <div class="divider">or</div>
+      <button class="btn btn-ghost btn-block" type="button" id="demo-btn">Try the IR side with demo access</button>
+      <p class="field hint" style="margin-top:var(--s3)">Demo access can add projects (tagged Demo) but can't change the IR team's real ones.</p>
+      <p style="margin-top:var(--s8)"><a class="btn-text" href="/">Back to project search</a></p>
+    </div>
+  </section>
+
+  <!-- Signed in -->
+  <div class="app" id="app" hidden>
+    <nav class="rail" aria-label="IR">
+      <a class="brand" href="/" aria-label="oGV Project Finder home">oGV</a>
+      <a class="rail-link" href="#projects" data-nav="projects" aria-label="Project bank" title="Project bank"><i data-icon="grid"></i></a>
+      <a class="rail-link" href="#new" data-nav="new" aria-label="Add project" title="Add project"><i data-icon="plus"></i></a>
+      <a class="rail-link" href="#requests" data-nav="requests" aria-label="CR requests" title="CR requests"><i data-icon="inbox"></i><span class="dot" id="requests-dot" hidden></span></a>
+      <a class="rail-link" href="/" aria-label="Project search (CR view)" title="Project search (CR view)"><i data-icon="search"></i></a>
+      <span class="rail-spacer"></span>
+      <button class="rail-link" type="button" id="logout-btn" aria-label="Sign out" title="Sign out"><i data-icon="logout"></i></button>
+    </nav>
+
+    <main class="main">
+      <div class="banner" id="demo-banner" hidden>
+        <i data-icon="alert"></i>
+        <span>You're using demo access. Projects you add show in the search with a Demo tag. The IR team's real projects are view-only.</span>
+      </div>
+
+      <!-- Dashboard -->
+      <section id="view-dashboard" hidden>
+        <div class="page-head">
+          <div>
+            <p class="eyebrow">IR team</p>
+            <h1 class="headline">Project <mark>bank</mark></h1>
+          </div>
+          <a class="btn btn-primary" href="#new"><i data-icon="plus"></i> Add project</a>
+        </div>
+
+        <div class="stats" id="stats" aria-live="polite"></div>
+
+        <div class="tabs" role="tablist">
+          <button type="button" role="tab" id="tab-projects" aria-selected="true" data-tab="projects">Projects <span class="count num" id="count-projects"></span></button>
+          <button type="button" role="tab" id="tab-requests" aria-selected="false" data-tab="requests">CR requests <span class="count num" id="count-requests"></span></button>
+        </div>
+
+        <div id="panel-projects" role="tabpanel" aria-labelledby="tab-projects">
+          <div class="toolbar">
+            <label class="sr-only" for="filter">Search projects</label>
+            <input class="input" id="filter" type="search" placeholder="Search name, country or LC">
+          </div>
+          <div id="projects-table"></div>
+        </div>
+
+        <div id="panel-requests" role="tabpanel" aria-labelledby="tab-requests" hidden>
+          <div class="toolbar"><p class="field hint" style="margin:0">When CR can't find a project, their request lands here. Mark it found once you've added one.</p></div>
+          <div id="requests-table"></div>
+        </div>
+      </section>
+
+      <!-- Add / edit form (built by ir-form.js) -->
+      <section id="view-form" hidden></section>
+    </main>
+
+    <aside class="panel" id="panel" aria-label="Preview" hidden></aside>
+  </div>
+
+  <script src="/js/common.js"></script>
+  <script src="/js/ir.js"></script>
+</body>
+</html>
