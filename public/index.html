@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>oGV Project Finder</title>
+  <meta name="description" content="Find a Global Volunteer project for your EP by product, country and start month.">
+  <meta name="theme-color" content="#1b1c1f">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <div class="app has-panel">
+    <nav class="rail" aria-label="Main">
+      <a class="brand" href="/" aria-label="oGV Project Finder home">oGV</a>
+      <a class="rail-link" href="/" aria-current="page" aria-label="Find projects" title="Find projects"><i data-icon="search"></i></a>
+      <a class="rail-link" href="/ir" aria-label="IR team" title="IR team"><i data-icon="briefcase"></i></a>
+    </nav>
+
+    <main class="main">
+      <p class="eyebrow">oGV Project Finder</p>
+      <h1 class="headline">Find the <mark>right project</mark> for your EP</h1>
+      <p class="lede">Pick a product, a country and the month your EP wants to start. Every project here was added by the oGV IR team.</p>
+
+      <section class="search" aria-label="Search">
+        <div class="segmented" role="radiogroup" aria-label="Product" id="products"></div>
+
+        <div class="filters">
+          <div class="field">
+            <label for="country">Country</label>
+            <select class="select" id="country"></select>
+          </div>
+          <div class="field">
+            <label for="month">Start month</label>
+            <select class="select" id="month"></select>
+          </div>
+          <div class="field">
+            <label for="sdg">Cause</label>
+            <select class="select" id="sdg"></select>
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="results-title">
+        <div class="results-head">
+          <h2 id="results-title">Projects</h2>
+          <p id="summary" class="num" aria-live="polite"></p>
+        </div>
+        <div id="results"></div>
+      </section>
+    </main>
+
+    <aside class="panel" id="panel" aria-label="Project details">
+      <div class="panel-empty">
+        <h2>No project selected</h2>
+        <p>Tap a project to see its start dates, what's covered and a ready message for your EP.</p>
+      </div>
+    </aside>
+    <div class="backdrop" id="backdrop"></div>
+  </div>
+
+  <script src="/js/common.js"></script>
+  <script src="/js/search.js"></script>
+</body>
+</html>
