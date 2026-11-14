@@ -1,8 +1,10 @@
-// Spinning wireframe globe with a pin for every country that has live projects.
-// Drawn on a <canvas> with an orthographic projection; no libraries.
+// Dotted-continent Earth, centred on the border between the dark area and the grey panel.
+// Left half fades out before the headline; right half shows faintly behind the panel.
+// Pins mark every country with live projects. Canvas + orthographic projection, no libraries.
 (function () {
   const canvas = document.getElementById('globe');
-  if (!canvas) return;
+  const panel = document.getElementById('panel');
+  if (!canvas || !panel) return;
   const ctx = canvas.getContext('2d');
 
   // Approximate centre (lat, lon) of countries AIESEC Global Volunteer runs in.
@@ -36,138 +38,248 @@
     'uae': 'United Arab Emirates', 'korea': 'South Korea', "côte d'ivoire": "Cote d'Ivoire",
     'ivory coast': "Cote d'Ivoire", 'czechia': 'Czech Republic',
   };
-  const lookup = (name) => {
-    const key = String(name).trim();
-    const found = Object.keys(CENTROIDS).find((c) => c.toLowerCase() === key.toLowerCase());
-    const alias = ALIASES[key.toLowerCase()];
-    return CENTROIDS[found || alias] ? { name: found || alias, pos: CENTROIDS[found || alias] } : null;
-  };
-
-  const css = getComputedStyle(document.documentElement);
-  const color = (v) => css.getPropertyValue(v).trim();
-  const C = { line: color('--line-strong'), faint: color('--line'), accent: color('--accent'), text: color('--text-2') };
-
-  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const TILT = (-18 * Math.PI) / 180;   // lean the north pole towards the viewer
-  const SPIN = (2 * Math.PI) / 50000;   // one turn every 50 seconds
-  const RAD = Math.PI / 180;
-
-  let pins = [];
-  let size = 0;
-  let dpr = 1;
-  let rotation = -80 * RAD;            // start with South Asia facing the viewer
-  let last = performance.now();
-
-  // lat/lon (degrees) -> screen x, y and depth z (z > 0 is the front).
-  function project(lat, lon) {
-    const phi = lat * RAD;
-    const lam = lon * RAD + rotation;
-    const x = Math.cos(phi) * Math.sin(lam);
-    const y = Math.sin(phi);
-    const z = Math.cos(phi) * Math.cos(lam);
-    const y2 = y * Math.cos(TILT) - z * Math.sin(TILT);
-    const z2 = y * Math.sin(TILT) + z * Math.cos(TILT);
-    const r = size * 0.44;
-    return { x: size / 2 + x * r, y: size / 2 - y2 * r, z: z2 };
+  function lookup(name) {
+    const key = String(name).trim().toLowerCase();
+    const found = Object.keys(CENTROIDS).find((c) => c.toLowerCase() === key) || ALIASES[key];
+    return found && CENTROIDS[found] ? { name: found, pos: CENTROIDS[found] } : null;
   }
 
-  // Draws a line of points, front segments solid, back segments faint.
-  function polyline(points) {
-    for (let i = 1; i < points.length; i++) {
-      const a = points[i - 1];
-      const b = points[i];
-      const front = a.z > 0 && b.z > 0;
-      ctx.strokeStyle = front ? C.line : C.faint;
-      ctx.globalAlpha = front ? 0.9 : 0.35;
-      ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x, b.y);
-      ctx.stroke();
+  /* ---------- Land dots from the world map (TopoJSON) ---------- */
+
+  // Turns the TopoJSON 'land' object into polygons of [lon, lat] rings.
+  function decodeLand(topo) {
+    const [sx, sy] = topo.transform.scale;
+    const [tx, ty] = topo.transform.translate;
+    const arcs = topo.arcs.map((arc) => {
+      let x = 0;
+      let y = 0;
+      return arc.map(([dx, dy]) => { x += dx; y += dy; return [x * sx + tx, y * sy + ty]; });
+    });
+    const arcPoints = (i) => (i >= 0 ? arcs[i] : arcs[~i].slice().reverse());
+    const ring = (ids) => ids.flatMap((id, k) => (k ? arcPoints(id).slice(1) : arcPoints(id)));
+    const polygons = [];
+    const land = topo.objects.land;
+    const geoms = land.type === 'GeometryCollection' ? land.geometries : [land];
+    geoms.forEach((g) => {
+      if (g.type === 'Polygon') polygons.push(g.arcs.map(ring));
+      if (g.type === 'MultiPolygon') g.arcs.forEach((p) => polygons.push(p.map(ring)));
+    });
+    return polygons.map((rings) => {
+      const outer = rings[0];
+      const lons = outer.map((p) => p[0]);
+      const lats = outer.map((p) => p[1]);
+      return { rings, box: [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)] };
+    });
+  }
+
+  function inRing(lon, lat, ring) {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const [xi, yi] = ring[i];
+      const [xj, yj] = ring[j];
+      if ((yi > lat) !== (yj > lat) && lon < ((xj - xi) * (lat - yi)) / (yj - yi) + xi) inside = !inside;
     }
+    return inside;
+  }
+
+  function onLand(lon, lat, polygons) {
+    for (const p of polygons) {
+      const [x0, y0, x1, y1] = p.box;
+      if (lon < x0 || lon > x1 || lat < y0 || lat > y1) continue;
+      let inside = false;
+      for (const r of p.rings) if (inRing(lon, lat, r)) inside = !inside; // holes flip it back
+      if (inside) return true;
+    }
+    return false;
+  }
+
+  // Evenly spaced dots on the land (Antarctica left out for a cleaner look).
+  function buildDots(polygons) {
+    const STEP = 1.6;
+    const out = [];
+    for (let lat = -56; lat <= 78; lat += STEP) {
+      const lonStep = STEP / Math.max(Math.cos((lat * Math.PI) / 180), 0.2);
+      for (let lon = -180; lon < 180; lon += lonStep) {
+        if (onLand(lon, lat, polygons)) out.push(lat, lon);
+      }
+    }
+    return Float32Array.from(out);
+  }
+
+  /* ---------- Drawing ---------- */
+
+  const css = getComputedStyle(document.documentElement);
+  const v = (name) => css.getPropertyValue(name).trim();
+  const DARK = { dot: v('--text-3'), rim: v('--line'), pin: v('--accent'), label: v('--text-2') };
+  const LIGHT = { dot: v('--paper-text-2'), rim: v('--paper-3'), pin: v('--paper-text'), label: v('--paper-text') };
+  const FONT = `600 11px ${v('--font')}`;
+
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const desktop = window.matchMedia('(min-width: 1101px)');
+  const RAD = Math.PI / 180;
+  const TILT = 14 * RAD;                  // centre the view on the tropics, where most projects are
+  const SPIN = (2 * Math.PI) / 90000;     // one turn every 90 seconds
+
+  let dots = new Float32Array(0);
+  let pins = [];
+  let rotation = -80 * RAD;               // start with South Asia in view
+  let last = performance.now();
+  let W = 0;
+  let H = 0;
+  let dpr = 1;
+  const PANEL_ALPHA = 0.6;               // how strongly the globe shows behind the grey panel
+  let panelAlpha = PANEL_ALPHA;
+  let panelTarget = PANEL_ALPHA;
+  let running = false;
+
+  function geometry() {
+    const border = panel.getBoundingClientRect().left;
+    const R = H * 0.47;
+    return { cx: border, cy: H / 2, R, border };
+  }
+
+  // lat/lon -> screen point and depth (z > 0 faces the viewer).
+  function project(lat, lon, g) {
+    const phi = lat * RAD;
+    const lam = lon * RAD + rotation;
+    const cp = Math.cos(phi);
+    const x = cp * Math.sin(lam);
+    const y = Math.sin(phi);
+    const z = cp * Math.cos(lam);
+    const y2 = y * Math.cos(TILT) - z * Math.sin(TILT);
+    const z2 = y * Math.sin(TILT) + z * Math.cos(TILT);
+    return { x: g.cx + x * g.R, y: g.cy - y2 * g.R, z: z2 };
+  }
+
+  // alpha: overall strength (1 on the dark side, fainter behind the grey panel).
+  function drawGlobe(g, theme, now, alpha = 1, labels = true) {
+    // Rim
+    ctx.globalAlpha = alpha;
+    ctx.strokeStyle = theme.rim;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(g.cx, g.cy, g.R, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // Land dots, smaller and fainter towards the edge for depth
+    ctx.fillStyle = theme.dot;
+    for (let i = 0; i < dots.length; i += 2) {
+      const p = project(dots[i], dots[i + 1], g);
+      if (p.z <= 0) continue;
+      const s = 1 + p.z * 1.8;
+      ctx.globalAlpha = alpha * (0.25 + p.z * 0.75);
+      ctx.fillRect(p.x - s / 2, p.y - s / 2, s, s);
+    }
+
+    // Pins
+    ctx.font = FONT;
+    pins.forEach((pin, i) => {
+      const p = project(pin.pos[0], pin.pos[1], g);
+      if (p.z <= 0.05) return;
+      const fade = alpha * Math.min(1, p.z * 3);
+      const phase = (now / 2400 + i * 0.37) % 1;
+      ctx.globalAlpha = fade * (1 - phase);
+      ctx.strokeStyle = theme.pin;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 5 + phase * 18, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = fade;
+      ctx.fillStyle = theme.pin;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+      ctx.fill();
+      if (!labels) return;
+      // Label towards the globe's centre so it stays on the globe.
+      const right = p.x > g.cx;
+      ctx.textAlign = right ? 'right' : 'left';
+      ctx.fillStyle = theme.label;
+      ctx.fillText(pin.name.toUpperCase(), p.x + (right ? -12 : 12), p.y + 4);
+      ctx.fillStyle = theme.dot;
+    });
     ctx.globalAlpha = 1;
   }
 
   function draw(now) {
+    if (!W) return;
+    const g = geometry();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.clearRect(0, 0, size, size);
-    ctx.lineWidth = 1;
+    ctx.clearRect(0, 0, W, H);
 
-    // Outline
-    ctx.strokeStyle = C.line;
+    // Dark side, fading out towards the headline
+    ctx.save();
     ctx.beginPath();
-    ctx.arc(size / 2, size / 2, size * 0.44, 0, Math.PI * 2);
-    ctx.stroke();
+    ctx.rect(0, 0, g.border, H);
+    ctx.clip();
+    drawGlobe(g, DARK, now);
+    ctx.globalCompositeOperation = 'destination-in';
+    const fade = ctx.createLinearGradient(g.cx - g.R, 0, g.cx - g.R * 0.2, 0);
+    fade.addColorStop(0, 'rgba(0,0,0,0)');
+    fade.addColorStop(1, 'rgba(0,0,0,1)');
+    ctx.fillStyle = fade;
+    ctx.fillRect(0, 0, g.border, H);
+    ctx.restore();
 
-    // Meridians every 20 degrees
-    for (let lon = -180; lon < 180; lon += 20) {
-      const pts = [];
-      for (let lat = -90; lat <= 90; lat += 5) pts.push(project(lat, lon));
-      polyline(pts);
-    }
-    // Parallels every 20 degrees
-    for (let lat = -60; lat <= 60; lat += 20) {
-      const pts = [];
-      for (let lon = -180; lon <= 180; lon += 5) pts.push(project(lat, lon));
-      polyline(pts);
-    }
-
-    // Pins, back to front so nearer ones sit on top
-    const placed = pins.map((p, i) => ({ ...p, i, at: project(p.pos[0], p.pos[1]) }))
-      .filter((p) => p.at.z > 0.05)
-      .sort((a, b) => a.at.z - b.at.z);
-
-    ctx.font = `600 11px ${color('--font')}`;
-    for (const p of placed) {
-      const fade = Math.min(1, p.at.z * 3);   // fade in near the edge
-      const phase = ((now / 2400) + p.i * 0.37) % 1;
-
-      ctx.globalAlpha = fade * (1 - phase);
-      ctx.strokeStyle = C.accent;
-      ctx.lineWidth = 1.5;
+    // Grey panel side, faint
+    if (panelAlpha > 0.01) {
+      ctx.save();
       ctx.beginPath();
-      ctx.arc(p.at.x, p.at.y, 4 + phase * 14, 0, Math.PI * 2);
-      ctx.stroke();
-
-      ctx.globalAlpha = fade;
-      ctx.fillStyle = C.accent;
-      ctx.beginPath();
-      ctx.arc(p.at.x, p.at.y, 4, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Label on the inner side so it never runs off the canvas.
-      const right = p.at.x > size / 2;
-      ctx.textAlign = right ? 'right' : 'left';
-      ctx.fillStyle = C.text;
-      ctx.fillText(p.name.toUpperCase(), p.at.x + (right ? -10 : 10), p.at.y + 4);
+      ctx.rect(g.border, 0, W - g.border, H);
+      ctx.clip();
+      // No labels here: they would collide with the panel's numbers.
+      drawGlobe(g, LIGHT, now, panelAlpha, false);
+      ctx.restore();
     }
-    ctx.globalAlpha = 1;
   }
 
   function frame(now) {
-    rotation += (now - last) * SPIN;
+    if (!running) return;
+    const dt = now - last;
     last = now;
+    if (!reduced) rotation += dt * SPIN;
+    panelAlpha += (panelTarget - panelAlpha) * Math.min(1, dt / 200);
     draw(now);
     requestAnimationFrame(frame);
   }
 
   function resize() {
-    const box = canvas.getBoundingClientRect();
-    if (!box.width) return;
+    W = window.innerWidth;
+    H = window.innerHeight;
     dpr = Math.min(window.devicePixelRatio || 1, 2);
-    size = box.width;
-    canvas.width = Math.round(size * dpr);
-    canvas.height = Math.round(size * dpr);
+    canvas.width = Math.round(W * dpr);
+    canvas.height = Math.round(H * dpr);
+    canvas.style.width = `${W}px`;
+    canvas.style.height = `${H}px`;
     draw(performance.now());
   }
 
-  new ResizeObserver(resize).observe(canvas);
+  function start() {
+    if (running || !desktop.matches) return;
+    running = true;
+    last = performance.now();
+    requestAnimationFrame(frame);
+  }
+  function stop() { running = false; }
 
+  window.addEventListener('resize', resize);
+  desktop.addEventListener('change', () => (desktop.matches ? start() : stop()));
+
+  // From search.js: live countries, and whether a project is open in the panel.
   window.addEventListener('ogv:summary', (e) => {
     pins = (e.detail.countries || []).map(lookup).filter(Boolean);
-    const label = pins.length ? `Globe showing projects in ${pins.map((p) => p.name).join(', ')}` : 'Globe';
-    canvas.setAttribute('aria-label', label);
+    canvas.setAttribute('aria-label', pins.length ? `Globe showing projects in ${pins.map((p) => p.name).join(', ')}` : 'Globe');
     draw(performance.now());
   });
+  window.addEventListener('ogv:panel', (e) => { panelTarget = e.detail.open ? 0 : PANEL_ALPHA; });
 
-  if (!reduced) requestAnimationFrame(frame);
+  fetch('/data/land-110m.json')
+    .then((r) => r.json())
+    .then((topo) => {
+      dots = buildDots(decodeLand(topo));
+      draw(performance.now());
+    })
+    .catch(() => { /* globe still shows its rim and pins */ });
+
+  resize();
+  start();
 })();

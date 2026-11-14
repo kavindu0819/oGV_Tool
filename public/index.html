@@ -11,7 +11,8 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap">
   <link rel="stylesheet" href="/css/styles.css">
 </head>
-<body>
+<body class="cr-page">
+  <canvas class="globe" id="globe" role="img" aria-label="Globe"></canvas>
   <div class="app has-panel">
     <nav class="rail" aria-label="Main">
       <a class="brand" href="/" aria-label="oGV Project Finder home">oGV</a>
@@ -20,14 +21,9 @@
     </nav>
 
     <main class="main">
-      <div class="hero">
-        <div>
-          <p class="eyebrow">oGV Project Finder</p>
-          <h1 class="headline">Find the <mark>right project</mark> for your EP</h1>
-          <p class="lede">Pick a product, a country and the month your EP wants to start. Every project here was added by the oGV IR team.</p>
-        </div>
-        <canvas class="globe" id="globe" role="img" aria-label="Globe"></canvas>
-      </div>
+      <p class="eyebrow">oGV Project Finder</p>
+      <h1 class="headline">Find the <mark>right project</mark> for your EP</h1>
+      <p class="lede">Pick a product, a country and the month your EP wants to start. Every project here was added by the oGV IR team.</p>
 
       <section class="search" aria-label="Search">
         <div class="segmented" role="radiogroup" aria-label="Product" id="products"></div>

@@ -160,23 +160,14 @@ a { color: inherit; }
   text-wrap: pretty;
 }
 
-/* Hero: text + globe */
-.hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) clamp(200px, calc(30vw - 220px), 420px);
-  align-items: center;
-  gap: var(--s8);
-}
-.globe { width: 100%; aspect-ratio: 1; }
-
-@media (max-width: 1600px) {
-  .hero .headline { font-size: 3.4rem; }
-}
-
-@media (max-width: 1360px) {
-  .hero .headline { font-size: var(--fs-display); }
-  .hero { grid-template-columns: minmax(0, 1fr); }
-  .globe { display: none; }
+/* Globe: a full-screen layer behind the content, centred on the panel edge.
+   The grey panel colour moves to the page background so the globe shows through it. */
+.globe { display: none; }
+@media (min-width: 1101px) {
+  body.cr-page { background: linear-gradient(to right, var(--bg) calc(100% - var(--panel)), var(--paper) 0); }
+  body.cr-page .globe { display: block; position: fixed; top: 0; left: 0; z-index: 0; pointer-events: none; }
+  body.cr-page .app { position: relative; z-index: 1; }
+  body.cr-page .panel { background: transparent; }
 }
 
 /* ---------- Buttons ---------- */
