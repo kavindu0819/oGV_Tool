@@ -1,19 +1,19 @@
-# Local MySQL for development. Start with: npm run db:up
-# Values come from .env in this folder.
+# Optional local Postgres for development. Start with: npm run db:up
+# Matches the local DATABASE_URL that scripts/setup-env.js writes to .env:
+#   postgres://ogv_app:<DB_PASSWORD>@127.0.0.1:5432/ogv_finder
 services:
   db:
-    image: mysql:8.0
-    container_name: ogv-mysql
+    image: postgres:16
+    container_name: ogv-postgres
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
-      MYSQL_DATABASE: ${DB_NAME}
-      MYSQL_USER: ${DB_USER}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ogv_finder
+      POSTGRES_USER: ogv_app
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "${DB_PORT}:3306"
+      - "5432:5432"
     volumes:
-      - ogv-mysql-data:/var/lib/mysql
+      - ogv-postgres-data:/var/lib/postgresql/data
 
 volumes:
-  ogv-mysql-data:
+  ogv-postgres-data:

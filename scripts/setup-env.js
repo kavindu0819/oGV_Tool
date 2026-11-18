@@ -14,13 +14,13 @@ const rand = (bytes) => crypto.randomBytes(bytes).toString('base64url');
 const words = ['delhi', 'jakarta', 'cairo', 'hanoi', 'kathmandu', 'rabat', 'izmir', 'penang'];
 const irPassword = `${words[crypto.randomInt(words.length)]}-${crypto.randomInt(1000, 9999)}-${rand(3)}`;
 
+const dbPassword = rand(18);
+
+// DATABASE_URL points at the optional local Docker Postgres (npm run db:up).
+// To use Neon instead, replace it with Neon's connection string.
 const env = `PORT=3000
-DB_HOST=127.0.0.1
-DB_PORT=3307
-DB_USER=ogv_app
-DB_PASSWORD=${rand(18)}
-DB_NAME=ogv_finder
-DB_SSL=false
+DB_PASSWORD=${dbPassword}
+DATABASE_URL=postgres://ogv_app:${dbPassword}@127.0.0.1:5432/ogv_finder
 IR_PASSWORD=${irPassword}
 COOKIE_SECRET=${rand(32)}
 `;
